@@ -1,0 +1,12 @@
+<div
+  [class.thrusting]="thrustLeft > 0"
+  [style.--thrust-intensity]="thrustLeft"
+  class="thruster left"
+></div>
+<div
+  [class.thrusting]="thrustRight > 0"
+  [style.--thrust-intensity]="thrustRight"
+  class="thruster right"
+></div>
+
+<!-- <pre class="debug"> --><!--   acceleration: {{ acceleration.x }} {{ acceleration.y }} --><!--   velocity: {{ velocity.x }} {{ velocity.y }} --><!--   position: {{ position?.x }} {{ position?.y }} --><!--   angularVelocity: {{ angularVelocity }} --><!--   rotation: {{ rotation }} --><!-- </pre> -->
