@@ -2,17 +2,52 @@ import {AfterViewInit, ChangeDetectorRef, Component, HostListener, inject, OnIni
 import {RouterOutlet} from '@angular/router';
 import {GamepadService} from './gamepad.service';
 import {filter} from 'rxjs';
-import {SpaceShipComponent} from './space-ship/space-ship.component';
+import {SpaceshipComponent} from './space-ship/space-ship.component';
+import {GameObject, Spaceship} from './game-objects/game-object';
+import {Vector} from './vector';
+import {version} from '../../package.json';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, SpaceShipComponent],
+  imports: [RouterOutlet, SpaceshipComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit, AfterViewInit {
-  @ViewChild(SpaceShipComponent) spaceShipComponent?: SpaceShipComponent;
+  @ViewChild(SpaceshipComponent) spaceshipComponent?: SpaceshipComponent;
+
+  version = version;
+
+  spaceship = new Spaceship({
+    position: new Vector(200, 200),
+    width: 16,
+    height: 30,
+    mass: 1,
+    inertia: 200,
+    origin: new Vector(8, 15),
+    rotation: 0, // 1.57,
+    thrusters: [
+      new GameObject({
+        height: 10,
+        width: 4,
+        position: new Vector(-12, 0),
+        origin: new Vector(2, 5),
+        thrustOrigin: new Vector(0, 5),
+        thrustDirection: new Vector(0, 20),
+        thrustFn: input => input.left
+      }),
+      new GameObject({
+        height: 10,
+        width: 4,
+        position: new Vector(12, 0),
+        origin: new Vector(2, 5),
+        thrustOrigin: new Vector(0, 5),
+        thrustDirection: new Vector(0, 20),
+        thrustFn: input => input.right
+      })
+    ]
+  });
 
   currentState?: Gamepad;
   triggerLeft: number = 0;
@@ -81,7 +116,13 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   private draw() {
     this.calcFps();
-    this.spaceShipComponent?.tick(this.deltaT);
+    this.spaceshipComponent?.tick(
+      this.deltaT,
+      {
+        left: this.triggerLeft,
+        right: this.triggerRight
+      }
+    );
     this.cdr.markForCheck();
   }
 

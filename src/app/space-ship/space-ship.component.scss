@@ -1,18 +1,3 @@
-:host {
-  --ship-width: 20px;
-  --ship-height: 60px;
-  --thruster-width: 9px;
-  --thruster-height: 9px;
-
-  position: absolute;
-  top: 400px;
-  left: 400px;
-  display: block;
-  background-color: black;
-  width: var(--ship-width);
-  height: var(--ship-height);
-  transform: rotate(var(--rotation-deg, 0deg));
-}
 
 .debug {
   font-size: 10px;
@@ -22,26 +7,26 @@
   left: calc(var(--ship-width) * 2);
 }
 
+.spaceship {
+  position: absolute;
+  display: block;
+  background-color: transparent;
+  outline: 1px solid black;
+  outline-offset: -1px;
+  transform: rotate(var(--rotation-deg, 0deg));
+}
+
 .thruster {
   position: absolute;
-  top: calc(var(--ship-height) / 2 - var(--thruster-height) / 2);
   display: block;
-  background-color: black;
-  width: var(--thruster-width);
-  height: var(--thruster-height);
-
-  &.left {
-    right: calc(var(--thruster-width) * -1);
-  }
-
-  &.right {
-    left: calc(var(--thruster-width) * -1);
-  }
+  background-color: transparent;
+  outline: 1px solid black;
+  outline-offset: -1px;
 
   &.thrusting {
-    box-shadow: 0 calc(var(--thrust-intensity, 0.1) * -5px) 0 -0px orange,
-    0 calc(var(--thrust-intensity, 0.1) * -10px) 0 -1px lighten(orange, 10),
-    0 calc(var(--thrust-intensity, 0.1) * -15px) 0 -2px lighten(orange, 20),
-    0 calc(var(--thrust-intensity, 0.1) * -20px) 0 -3px lighten(orange, 30);
+    box-shadow: 0 calc(var(--thrust-intensity, 0.1) * 5px) 0 -0px orange,
+    0 calc(var(--thrust-intensity, 0.1) * 10px) 0 -1px lighten(orange, 10),
+    0 calc(var(--thrust-intensity, 0.1) * 15px) 0 -2px lighten(orange, 20),
+    0 calc(var(--thrust-intensity, 0.1) * 20px) 0 -3px lighten(orange, 30);
   }
 }

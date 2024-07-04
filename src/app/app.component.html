@@ -1,23 +1,21 @@
-<button (click)="start()">
-  Start
-</button>
+<pre style="font-size: 12px">
+v {{ version }}
+FPS: {{ fps }}
 
-<button (click)="stop()">
-  Stop
-</button>
+Controls:
 
-<pre>
-  FPS: {{ fps }}
-
-  Instructions:
-
-  Left Thruster:  Left  trigger on controller OR left  arrow key
-  Right Thruster: Right trigger on controller OR right arrow key
+               | Controller    | Keyboard
+===============|===============|=================
+Left Thruster  | Left  trigger | left arrow key
+Right Thruster | Right trigger | right arrow key
 </pre>
 
 <br>
 
-<div class="demo-container">
+<div
+  class="demo-container"
+  style="display: none"
+>
   @if (currentState?.axes != null) {
     @for (axis of currentState?.axes; track $index) {
       <div class="row axis">
@@ -53,6 +51,7 @@
 </div>
 
 <app-space-ship
+  [spaceship]="spaceship"
   [thrustLeft]="triggerLeft"
   [thrustRight]="triggerRight"
 />
