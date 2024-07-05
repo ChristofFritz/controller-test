@@ -1,8 +1,8 @@
 <div
+  [style.--pos-x]="spaceship.cssPosition.x + 'px'"
+  [style.--pos-y]="spaceship.cssPosition.y + 'px'"
   [style.--rotation-deg]="(spaceship.rotation * (180 / 3.1415)) + 'deg'"
   [style.height.px]="spaceship.height"
-  [style.left.px]="spaceship.cssPosition.x"
-  [style.top.px]="spaceship.cssPosition.y"
   [style.width.px]="spaceship.width"
   class="spaceship"
 >
@@ -15,6 +15,7 @@
       [style.top.px]="thruster.cssPosition.y"
       [style.width.px]="thruster.width"
       [class.thrusting]="thruster.thrust > 0"
+      [style.--rotation-deg]="(thruster.rotation * (180 / 3.1415)) + 'deg'"
       [style.--thrust-intensity]="thruster.thrust"
       class="thruster"
     ></div>

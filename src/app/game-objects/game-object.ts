@@ -1,6 +1,8 @@
 import {Vector} from '../vector';
 
 export interface ThrustInput {
+  thrustLeft: number;
+  thrustRight: number;
   left: number;
   right: number;
 }
@@ -87,7 +89,7 @@ export class Spaceship extends GameObject {
     this.thrusters.forEach(thruster => {
 
       thruster.thrust = thruster.thrustFn(thrustInput);
-      const thrustVector = thruster.thrustDirection.scale(thruster.thrust);
+      const thrustVector = thruster.thrustDirection.rotate(thruster.rotation).scale(thruster.thrust);
       const torque = thruster.position.cross(thrustVector);
       const angularAcceleration = torque / this.inertia;
       const linearAcceleration = thrustVector.divide(this.mass);

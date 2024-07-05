@@ -1,3 +1,8 @@
+:host {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
 
 .debug {
   font-size: 10px;
@@ -13,7 +18,8 @@
   background-color: transparent;
   outline: 1px solid black;
   outline-offset: -1px;
-  transform: rotate(var(--rotation-deg, 0deg));
+
+  transform: translateX(var(--pos-x, 0)) translateY(var(--pos-y, 0)) rotate(var(--rotation-deg, 0deg));
 }
 
 .thruster {
@@ -22,6 +28,8 @@
   background-color: transparent;
   outline: 1px solid black;
   outline-offset: -1px;
+  transform-origin: center center;
+  transform: rotate(var(--rotation-deg, 0deg));
 
   &.thrusting {
     box-shadow: 0 calc(var(--thrust-intensity, 0.1) * 5px) 0 -0px orange,

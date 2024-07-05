@@ -20,7 +20,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   version = version;
 
   spaceship = new Spaceship({
-    position: new Vector(200, 200),
+    position: new Vector(Math.floor((visualViewport!.width ?? 200) / 2), Math.floor((visualViewport!.height ?? 200) / 2)),
     width: 16,
     height: 30,
     mass: 1,
@@ -31,29 +31,73 @@ export class AppComponent implements OnInit, AfterViewInit {
       new GameObject({
         height: 10,
         width: 4,
-        position: new Vector(-12, 0),
+        position: new Vector(-12, 10),
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 20),
-        thrustFn: input => input.left
+        thrustFn: input => input.thrustLeft,
+        rotation: .1
       }),
       new GameObject({
         height: 10,
         width: 4,
-        position: new Vector(12, 0),
+        position: new Vector(12, 10),
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 20),
-        thrustFn: input => input.right
+        thrustFn: input => input.thrustRight,
+        rotation: -.1
+      }),
+      new GameObject({
+        height: 4,
+        width: 4,
+        position: new Vector(10, -10),
+        origin: new Vector(2, 5),
+        thrustOrigin: new Vector(0, 5),
+        thrustDirection: new Vector(0, 10),
+        thrustFn: input => input.left,
+        rotation: -1.57
+      }),
+      new GameObject({
+        height: 4,
+        width: 4,
+        position: new Vector(10, 10),
+        origin: new Vector(2, 5),
+        thrustOrigin: new Vector(0, 5),
+        thrustDirection: new Vector(0, 10),
+        thrustFn: input => input.left,
+        rotation: -1.57
+      }),
+      new GameObject({
+        height: 4,
+        width: 4,
+        position: new Vector(-10, -10),
+        origin: new Vector(2, 5),
+        thrustOrigin: new Vector(0, 5),
+        thrustDirection: new Vector(0, 10),
+        thrustFn: input => input.right,
+        rotation: 1.57
+      }),
+      new GameObject({
+        height: 4,
+        width: 4,
+        position: new Vector(-10, 10),
+        origin: new Vector(2, 5),
+        thrustOrigin: new Vector(0, 5),
+        thrustDirection: new Vector(0, 10),
+        thrustFn: input => input.right,
+        rotation: 1.57
       })
     ]
   });
 
   currentState?: Gamepad;
-  triggerLeft: number = 0;
-  triggerRight: number = 0;
-  fps: number = 0;
+  triggerLeft = 0;
+  triggerRight = 0;
+  dPadLeft = 0;
+  dPadRight = 0;
 
+  fps: number = 0;
   private deltaT: number = 0;
   private oldTimeStamp: number = 0;
 
@@ -74,6 +118,8 @@ export class AppComponent implements OnInit, AfterViewInit {
             this.currentState = state;
             this.triggerLeft = state.buttons[6].value;
             this.triggerRight = state.buttons[7].value;
+            this.dPadLeft = state.buttons[14].value;
+            this.dPadRight = state.buttons[15].value;
           }
         }
       })
@@ -97,6 +143,10 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.triggerLeft = 1;
     } else if ($event.key === 'ArrowRight') {
       this.triggerRight = 1;
+    } else if ($event.key === 'd') {
+      this.dPadRight = 1;
+    } else if ($event.key === 'a') {
+      this.dPadLeft = 1;
     }
   }
 
@@ -106,6 +156,10 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.triggerLeft = 0;
     } else if ($event.key === 'ArrowRight') {
       this.triggerRight = 0;
+    } else if ($event.key === 'd') {
+      this.dPadRight = 0;
+    } else if ($event.key === 'a') {
+      this.dPadLeft = 0;
     }
   }
 
@@ -119,8 +173,10 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.spaceshipComponent?.tick(
       this.deltaT,
       {
-        left: this.triggerLeft,
-        right: this.triggerRight
+        thrustLeft: this.triggerLeft,
+        thrustRight: this.triggerRight,
+        left: this.dPadLeft,
+        right: this.dPadRight,
       }
     );
     this.cdr.markForCheck();

@@ -4,17 +4,18 @@ FPS: {{ fps }}
 
 Controls:
 
-               | Controller    | Keyboard
-===============|===============|=================
-Left Thruster  | Left  trigger | left arrow key
-Right Thruster | Right trigger | right arrow key
+                     | Controller    | Keyboard
+=====================|===============|=================
+Left back thruster   | Left  trigger | left arrow key
+Right back thruster  | Right trigger | right arrow key
+Left side thrusters  | D-Pad right   | d key
+Right side thrusters | D-Pad left    | a key
 </pre>
 
 <br>
 
 <div
   class="demo-container"
-  style="display: none"
 >
   @if (currentState?.axes != null) {
     @for (axis of currentState?.axes; track $index) {
