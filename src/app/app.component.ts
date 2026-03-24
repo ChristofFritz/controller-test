@@ -10,7 +10,7 @@ import {CaveGrid} from './terrain/cave-grid';
 import {TerrainRenderer} from './terrain/terrain-renderer';
 import {TerrainCollision} from './terrain/collision';
 import {MarchingSquares} from './terrain/marching-squares';
-import {PathGenerator, GamePath} from './terrain/path-generator';
+import {PathGenerator, GamePath, getPathProximity, PathProximity, POINTS_PER_CHECKPOINT, SKIP_PENALTY} from './terrain/path-generator';
 import {version} from '../../package.json';
 
 @Component({
@@ -30,6 +30,16 @@ export class AppComponent implements OnInit, AfterViewInit {
   private terrainCollision!: TerrainCollision;
   private gamePath!: GamePath;
   private spawnPoint!: Vector;
+  private proximity: PathProximity | null = null;
+
+  // Game state
+  nextCheckpoint = 1;
+  reachedCheckpoints = 0;
+  skippedCheckpoints = 0;
+  proximitySum = 0;
+  proximitySamples = 0;
+  finished = false;
+  finalScore = 0;
 
   version = version;
 
@@ -235,14 +245,69 @@ export class AppComponent implements OnInit, AfterViewInit {
       if (this.spaceship.isDead()) {
         this.spaceship.respawn(this.spawnPoint);
       }
+
+      // Proximity + checkpoint tracking
+      if (!this.finished) {
+        this.proximity = getPathProximity(this.gamePath, this.spaceship.position);
+
+        // Track proximity for multiplier
+        const maxDist = 120;
+        const proximityRatio = Math.max(0, 1 - this.proximity.distance / maxDist);
+        this.proximitySum += proximityRatio;
+        this.proximitySamples++;
+
+        // Check if ship reached the next checkpoint
+        const pts = this.gamePath.points;
+        if (this.nextCheckpoint < pts.length) {
+          const distToCheckpoint = this.spaceship.position.subtract(pts[this.nextCheckpoint]).length();
+
+          if (distToCheckpoint < this.gamePath.checkpointRadius) {
+            this.reachedCheckpoints++;
+            this.nextCheckpoint++;
+          } else if (this.proximity.segmentIndex >= this.nextCheckpoint) {
+            // Skipped past this checkpoint
+            this.skippedCheckpoints++;
+            this.nextCheckpoint++;
+          }
+        }
+
+        // Check goal reached (last point)
+        const distToGoal = this.spaceship.position.subtract(this.gamePath.goal).length();
+        if (distToGoal < this.gamePath.checkpointRadius) {
+          this.finishGame();
+        }
+      }
     }
 
     // Camera
     this.camera.update(this.spaceship.position);
 
     // Render
-    this.renderer.render(this.spaceship, this.camera, this.terrainRenderer, this.gamePath);
+    this.renderer.render(this.spaceship, this.camera, this.terrainRenderer, {
+      path: this.gamePath,
+      proximity: this.proximity ?? undefined,
+      nextCheckpoint: this.nextCheckpoint,
+      reachedCheckpoints: this.reachedCheckpoints,
+      skippedCheckpoints: this.skippedCheckpoints,
+      proximityMultiplier: this.getProximityMultiplier(),
+      finished: this.finished,
+      finalScore: this.finalScore,
+    });
     this.cdr.markForCheck();
+  }
+
+  private getProximityMultiplier(): number {
+    if (this.proximitySamples === 0) return 1;
+    const avg = this.proximitySum / this.proximitySamples;
+    // Map [0, 1] average proximity to [0.5, 2.0] multiplier
+    return 0.5 + avg * 1.5;
+  }
+
+  private finishGame() {
+    this.finished = true;
+    const basePoints = this.reachedCheckpoints * POINTS_PER_CHECKPOINT
+                     - this.skippedCheckpoints * SKIP_PENALTY;
+    this.finalScore = Math.max(0, Math.round(basePoints * this.getProximityMultiplier()));
   }
 
   private calcFps() {

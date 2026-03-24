@@ -14,6 +14,46 @@ export interface GamePath {
   points: Vector[];          // waypoints (segmentCount + 1 points)
   start: Vector;
   goal: Vector;
+  checkpointRadius: number;  // how close to a waypoint to count as reached
+}
+
+export const POINTS_PER_CHECKPOINT = 100;
+export const SKIP_PENALTY = 150;
+
+export interface PathProximity {
+  distance: number;
+  closestPoint: Vector;
+  segmentIndex: number;
+}
+
+export function getPathProximity(path: GamePath, position: Vector): PathProximity {
+  let bestDist = Infinity;
+  let bestPoint = path.start;
+  let bestSegment = 0;
+
+  for (let i = 0; i < path.points.length - 1; i++) {
+    const a = path.points[i];
+    const b = path.points[i + 1];
+    const ab = b.subtract(a);
+    const ap = position.subtract(a);
+    const lenSq = ab.dot(ab);
+
+    let t = 0;
+    if (lenSq > 0.0001) {
+      t = Math.max(0, Math.min(1, ap.dot(ab) / lenSq));
+    }
+
+    const closest = a.add(ab.scale(t));
+    const dist = position.subtract(closest).length();
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestPoint = closest;
+      bestSegment = i;
+    }
+  }
+
+  return {distance: bestDist, closestPoint: bestPoint, segmentIndex: bestSegment};
 }
 
 const DEFAULT_PATH_CONFIG: PathConfig = {
@@ -100,6 +140,7 @@ export class PathGenerator {
       points,
       start: points[0],
       goal: points[points.length - 1],
+      checkpointRadius: this.config.corridorRadius * this.grid.config.cellSize,
     };
   }
 
