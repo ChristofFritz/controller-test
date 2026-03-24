@@ -10,6 +10,7 @@ import {CaveGrid} from './terrain/cave-grid';
 import {TerrainRenderer} from './terrain/terrain-renderer';
 import {TerrainCollision} from './terrain/collision';
 import {MarchingSquares} from './terrain/marching-squares';
+import {PathGenerator, GamePath} from './terrain/path-generator';
 import {version} from '../../package.json';
 
 @Component({
@@ -27,6 +28,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   private caveGrid!: CaveGrid;
   private terrainRenderer!: TerrainRenderer;
   private terrainCollision!: TerrainCollision;
+  private gamePath!: GamePath;
   private spawnPoint!: Vector;
 
   version = version;
@@ -122,10 +124,14 @@ export class AppComponent implements OnInit, AfterViewInit {
     // Generate cave
     this.caveGrid = new CaveGrid();
     this.caveGrid.generate();
-    this.spawnPoint = this.caveGrid.findOpenSpawn();
+
+    // Generate path (clears corridor in cave grid, must happen before marching squares)
+    const pathGen = new PathGenerator(this.caveGrid);
+    this.gamePath = pathGen.generate();
+    this.spawnPoint = this.gamePath.start;
     this.spaceship.respawn(this.spawnPoint);
 
-    // Terrain systems
+    // Terrain systems (after path carves corridors)
     const marchingSquares = new MarchingSquares(this.caveGrid);
     this.terrainRenderer = new TerrainRenderer(this.caveGrid, marchingSquares);
     this.terrainCollision = new TerrainCollision(this.caveGrid, marchingSquares);
@@ -235,7 +241,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.camera.update(this.spaceship.position);
 
     // Render
-    this.renderer.render(this.spaceship, this.camera, this.terrainRenderer);
+    this.renderer.render(this.spaceship, this.camera, this.terrainRenderer, this.gamePath);
     this.cdr.markForCheck();
   }
 

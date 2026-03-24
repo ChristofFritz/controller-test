@@ -1,6 +1,7 @@
 import {Spaceship, GameObject} from './game-objects/game-object';
 import {Camera} from './camera';
 import {TerrainRenderer} from './terrain/terrain-renderer';
+import {GamePath} from './terrain/path-generator';
 
 const FLAME_COLORS = ['#ff8c00', '#ffa500', '#ffb733', '#ffd066'];
 const BG_COLOR = '#0a0a1a';
@@ -24,7 +25,7 @@ export class CanvasRenderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  render(spaceship: Spaceship, camera: Camera, terrainRenderer: TerrainRenderer) {
+  render(spaceship: Spaceship, camera: Camera, terrainRenderer: TerrainRenderer, path?: GamePath) {
     const ctx = this.ctx;
 
     // Background
@@ -40,6 +41,11 @@ export class CanvasRenderer {
 
     // Terrain
     terrainRenderer.draw(ctx, camera);
+
+    // Path
+    if (path) {
+      this.drawPath(path);
+    }
 
     // Ship
     this.drawSpaceship(spaceship);
@@ -105,6 +111,71 @@ export class CanvasRenderer {
     }
 
     ctx.globalAlpha = 1;
+  }
+
+  private drawPath(path: GamePath) {
+    const ctx = this.ctx;
+    const pts = path.points;
+    if (pts.length < 2) return;
+
+    // Draw path segments as dashed lines
+    ctx.save();
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw waypoints (intermediate)
+    for (let i = 1; i < pts.length - 1; i++) {
+      ctx.beginPath();
+      ctx.arc(pts[i].x, pts[i].y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100, 180, 255, 0.5)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(100, 180, 255, 0.8)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Start marker (green)
+    this.drawMarker(path.start, '#00cc44', 'S');
+
+    // Goal marker (red)
+    this.drawMarker(path.goal, '#ff3344', 'G');
+
+    ctx.restore();
+  }
+
+  private drawMarker(pos: import('./vector').Vector, color: string, label: string) {
+    const ctx = this.ctx;
+    const radius = 14;
+
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color + '33';
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner dot
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = color;
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(label, pos.x, pos.y - radius - 4);
   }
 
   private drawHealthBar(ship: Spaceship) {
