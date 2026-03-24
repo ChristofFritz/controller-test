@@ -6,11 +6,10 @@ const SOLID_COLOR = '#2a1a0a';
 const CONTOUR_COLOR = '#5a4a3a';
 
 export class TerrainRenderer {
-  private marchingSquares: MarchingSquares;
-
-  constructor(private grid: CaveGrid) {
-    this.marchingSquares = new MarchingSquares(grid);
-  }
+  constructor(
+    private grid: CaveGrid,
+    private marchingSquares: MarchingSquares,
+  ) {}
 
   draw(ctx: CanvasRenderingContext2D, camera: Camera): void {
     const cellSize = this.grid.config.cellSize;

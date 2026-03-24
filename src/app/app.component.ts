@@ -9,6 +9,7 @@ import {Camera} from './camera';
 import {CaveGrid} from './terrain/cave-grid';
 import {TerrainRenderer} from './terrain/terrain-renderer';
 import {TerrainCollision} from './terrain/collision';
+import {MarchingSquares} from './terrain/marching-squares';
 import {version} from '../../package.json';
 
 @Component({
@@ -125,8 +126,9 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.spaceship.respawn(this.spawnPoint);
 
     // Terrain systems
-    this.terrainRenderer = new TerrainRenderer(this.caveGrid);
-    this.terrainCollision = new TerrainCollision(this.caveGrid);
+    const marchingSquares = new MarchingSquares(this.caveGrid);
+    this.terrainRenderer = new TerrainRenderer(this.caveGrid, marchingSquares);
+    this.terrainCollision = new TerrainCollision(this.caveGrid, marchingSquares);
 
     // Gamepad
     this.gamepadService.start();

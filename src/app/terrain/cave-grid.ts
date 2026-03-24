@@ -76,6 +76,25 @@ export class CaveGrid {
     return this.noiseValues[cy * this.cornerCols + cx];
   }
 
+  getNoiseValueAt(wx: number, wy: number): number {
+    const cellSize = this.config.cellSize;
+    const cx = wx / cellSize;
+    const cy = wy / cellSize;
+    const ix = Math.floor(cx);
+    const iy = Math.floor(cy);
+    const fx = cx - ix;
+    const fy = cy - iy;
+
+    const ntl = this.getNoiseValue(ix, iy);
+    const ntr = this.getNoiseValue(ix + 1, iy);
+    const nbl = this.getNoiseValue(ix, iy + 1);
+    const nbr = this.getNoiseValue(ix + 1, iy + 1);
+
+    const top = ntl + (ntr - ntl) * fx;
+    const bot = nbl + (nbr - nbl) * fx;
+    return top + (bot - top) * fy;
+  }
+
   isWorldPointSolid(wx: number, wy: number): boolean {
     const cellSize = this.config.cellSize;
     const cx = Math.floor(wx / cellSize);
