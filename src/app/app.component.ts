@@ -5,6 +5,10 @@ import {filter} from 'rxjs';
 import {GameObject, Spaceship} from './game-objects/game-object';
 import {Vector} from './vector';
 import {CanvasRenderer} from './canvas-renderer';
+import {Camera} from './camera';
+import {CaveGrid} from './terrain/cave-grid';
+import {TerrainRenderer} from './terrain/terrain-renderer';
+import {TerrainCollision} from './terrain/collision';
 import {version} from '../../package.json';
 
 @Component({
@@ -18,17 +22,22 @@ export class AppComponent implements OnInit, AfterViewInit {
   @ViewChild('gameCanvas', {static: true}) canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private renderer!: CanvasRenderer;
+  private camera!: Camera;
+  private caveGrid!: CaveGrid;
+  private terrainRenderer!: TerrainRenderer;
+  private terrainCollision!: TerrainCollision;
+  private spawnPoint!: Vector;
 
   version = version;
 
   spaceship = new Spaceship({
-    position: new Vector(Math.floor((visualViewport!.width ?? 200) / 2), Math.floor((visualViewport!.height ?? 200) / 2)),
+    position: new Vector(0, 0), // will be set to spawn point
     width: 16,
     height: 30,
     mass: 1,
     inertia: 200,
     origin: new Vector(8, 15),
-    rotation: 0, // 1.57,
+    rotation: 0,
     thrusters: [
       new GameObject({
         height: 10,
@@ -109,13 +118,21 @@ export class AppComponent implements OnInit, AfterViewInit {
   private cdr = inject(ChangeDetectorRef);
 
   ngOnInit() {
-    this.gamepadService.start();
+    // Generate cave
+    this.caveGrid = new CaveGrid();
+    this.caveGrid.generate();
+    this.spawnPoint = this.caveGrid.findOpenSpawn();
+    this.spaceship.respawn(this.spawnPoint);
 
+    // Terrain systems
+    this.terrainRenderer = new TerrainRenderer(this.caveGrid);
+    this.terrainCollision = new TerrainCollision(this.caveGrid);
+
+    // Gamepad
+    this.gamepadService.start();
     this.gamepadService
       .gamepadState$
-      .pipe(
-        filter(state => state != null)
-      )
+      .pipe(filter(state => state != null))
       .subscribe({
         next: state => {
           if (state) {
@@ -126,17 +143,20 @@ export class AppComponent implements OnInit, AfterViewInit {
             this.dPadRight = state.buttons[15].value;
           }
         }
-      })
+      });
   }
 
   ngAfterViewInit() {
     this.renderer = new CanvasRenderer(this.canvasRef.nativeElement);
+    this.camera = new Camera(window.innerWidth, window.innerHeight);
+    this.camera.update(this.spawnPoint);
     this.gameLoop();
   }
 
   @HostListener('window:resize')
   onResize() {
     this.renderer?.resize();
+    this.camera?.resize(window.innerWidth, window.innerHeight);
   }
 
   start() {
@@ -190,6 +210,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.calcFps();
 
     if (this.deltaT <= 1) {
+      // Physics
       this.spaceship.tick(this.deltaT, {
         thrustLeft: this.triggerLeft,
         thrustRight: this.triggerRight,
@@ -198,9 +219,21 @@ export class AppComponent implements OnInit, AfterViewInit {
         rotateCCW: this.rotateCCW,
         rotateCW: this.rotateCW,
       });
+
+      // Collision
+      this.terrainCollision.checkAndResolve(this.spaceship);
+
+      // Death / respawn
+      if (this.spaceship.isDead()) {
+        this.spaceship.respawn(this.spawnPoint);
+      }
     }
 
-    this.renderer.render(this.spaceship);
+    // Camera
+    this.camera.update(this.spaceship.position);
+
+    // Render
+    this.renderer.render(this.spaceship, this.camera, this.terrainRenderer);
     this.cdr.markForCheck();
   }
 
@@ -211,4 +244,3 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.fps = Math.round(1 / this.deltaT);
   }
 }
-

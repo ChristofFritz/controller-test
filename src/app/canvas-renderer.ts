@@ -1,6 +1,9 @@
 import {Spaceship, GameObject} from './game-objects/game-object';
+import {Camera} from './camera';
+import {TerrainRenderer} from './terrain/terrain-renderer';
 
 const FLAME_COLORS = ['#ff8c00', '#ffa500', '#ffb733', '#ffd066'];
+const BG_COLOR = '#0a0a1a';
 
 export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -21,9 +24,30 @@ export class CanvasRenderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  render(spaceship: Spaceship) {
-    this.ctx.clearRect(0, 0, this.width, this.height);
+  render(spaceship: Spaceship, camera: Camera, terrainRenderer: TerrainRenderer) {
+    const ctx = this.ctx;
+
+    // Background
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Camera transform
+    ctx.save();
+    ctx.translate(
+      this.width / 2 - camera.position.x,
+      this.height / 2 - camera.position.y,
+    );
+
+    // Terrain
+    terrainRenderer.draw(ctx, camera);
+
+    // Ship
     this.drawSpaceship(spaceship);
+
+    ctx.restore();
+
+    // HUD (screen-space)
+    this.drawHealthBar(spaceship);
   }
 
   private drawSpaceship(ship: Spaceship) {
@@ -34,12 +58,10 @@ export class CanvasRenderer {
     ctx.rotate(ship.rotation);
     ctx.translate(-ship.origin.x, -ship.origin.y);
 
-    // Ship body
-    ctx.strokeStyle = 'black';
+    ctx.strokeStyle = '#ccc';
     ctx.lineWidth = 1;
     ctx.strokeRect(0, 0, ship.width, ship.height);
 
-    // Thrusters
     for (const thruster of ship.thrusters) {
       this.drawThruster(thruster);
     }
@@ -56,12 +78,10 @@ export class CanvasRenderer {
     ctx.rotate(thruster.rotation);
     ctx.translate(-thruster.origin.x, -thruster.origin.y);
 
-    // Thruster body
-    ctx.strokeStyle = 'black';
+    ctx.strokeStyle = '#ccc';
     ctx.lineWidth = 1;
     ctx.strokeRect(0, 0, thruster.width, thruster.height);
 
-    // Thrust flame
     if (thruster.thrust > 0) {
       this.drawFlame(thruster);
     }
@@ -85,5 +105,26 @@ export class CanvasRenderer {
     }
 
     ctx.globalAlpha = 1;
+  }
+
+  private drawHealthBar(ship: Spaceship) {
+    const ctx = this.ctx;
+    const barWidth = 200;
+    const barHeight = 12;
+    const x = this.width - barWidth - 20;
+    const y = 20;
+    const healthPct = ship.health / ship.maxHealth;
+
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    const green = Math.floor(healthPct * 255);
+    const red = 255 - green;
+    ctx.fillStyle = `rgb(${red}, ${green}, 0)`;
+    ctx.fillRect(x, y, barWidth * healthPct, barHeight);
+
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, barWidth, barHeight);
   }
 }

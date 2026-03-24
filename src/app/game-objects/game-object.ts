@@ -18,6 +18,9 @@ export class GameObject {
   mass: number;
   inertia: number;
 
+  health: number;
+  maxHealth: number;
+
   affectedByGravity: boolean;
   position: Vector;
   acceleration: Vector;
@@ -40,6 +43,8 @@ export class GameObject {
     this.height = v?.height ?? 10;
     this.mass = v?.mass ?? 10;
     this.inertia = v?.inertia ?? 10;
+    this.maxHealth = v?.maxHealth ?? 100;
+    this.health = v?.health ?? this.maxHealth;
     this.affectedByGravity = v?.affectedByGravity ?? false;
     this.position = v?.position ? new Vector(v.position.x, v.position.y) : new Vector();
     this.acceleration = v?.acceleration ? new Vector(v.acceleration.x, v.acceleration.y) : new Vector();
@@ -52,6 +57,24 @@ export class GameObject {
     this.thrustFn = v?.thrustFn || ((input: ThrustInput) => 0);
     this.thrustOrigin = v?.thrustOrigin ? new Vector(v.thrustOrigin.x, v.thrustOrigin.y) : new Vector();
     this.thrustDirection = v?.thrustDirection ? new Vector(v.thrustDirection.x, v.thrustDirection.y) : new Vector(0, 1);
+  }
+
+  takeDamage(amount: number): void {
+    this.health = Math.max(0, this.health - amount);
+  }
+
+  isDead(): boolean {
+    return this.health <= 0;
+  }
+
+  respawn(position: Vector): void {
+    this.health = this.maxHealth;
+    this.position = new Vector(position.x, position.y);
+    this.velocity = new Vector();
+    this.acceleration = new Vector();
+    this.angularVelocity = 0;
+    this.angularAcceleration = 0;
+    this.rotation = 0;
   }
 
   get cssPosition(): Vector {
