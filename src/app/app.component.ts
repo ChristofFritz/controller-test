@@ -1,21 +1,23 @@
-import {AfterViewInit, ChangeDetectorRef, Component, HostListener, inject, OnInit, ViewChild} from '@angular/core';
+import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, inject, OnInit, ViewChild} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
 import {GamepadService} from './gamepad.service';
 import {filter} from 'rxjs';
-import {SpaceshipComponent} from './space-ship/space-ship.component';
 import {GameObject, Spaceship} from './game-objects/game-object';
 import {Vector} from './vector';
+import {CanvasRenderer} from './canvas-renderer';
 import {version} from '../../package.json';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, SpaceshipComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit, AfterViewInit {
-  @ViewChild(SpaceshipComponent) spaceshipComponent?: SpaceshipComponent;
+  @ViewChild('gameCanvas', {static: true}) canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  private renderer!: CanvasRenderer;
 
   version = version;
 
@@ -31,22 +33,22 @@ export class AppComponent implements OnInit, AfterViewInit {
       new GameObject({
         height: 10,
         width: 4,
-        position: new Vector(-12, 10),
+        position: new Vector(-12, 0),
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 20),
         thrustFn: input => input.thrustLeft,
-        rotation: .1
+        rotation: 0
       }),
       new GameObject({
         height: 10,
         width: 4,
-        position: new Vector(12, 10),
+        position: new Vector(12, 0),
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 20),
         thrustFn: input => input.thrustRight,
-        rotation: -.1
+        rotation: 0
       }),
       new GameObject({
         height: 4,
@@ -55,7 +57,7 @@ export class AppComponent implements OnInit, AfterViewInit {
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 10),
-        thrustFn: input => input.left,
+        thrustFn: input => Math.max(input.left, input.rotateCCW),
         rotation: -1.57
       }),
       new GameObject({
@@ -65,7 +67,7 @@ export class AppComponent implements OnInit, AfterViewInit {
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 10),
-        thrustFn: input => input.left,
+        thrustFn: input => Math.max(input.left, input.rotateCW),
         rotation: -1.57
       }),
       new GameObject({
@@ -75,7 +77,7 @@ export class AppComponent implements OnInit, AfterViewInit {
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 10),
-        thrustFn: input => input.right,
+        thrustFn: input => Math.max(input.right, input.rotateCW),
         rotation: 1.57
       }),
       new GameObject({
@@ -85,7 +87,7 @@ export class AppComponent implements OnInit, AfterViewInit {
         origin: new Vector(2, 5),
         thrustOrigin: new Vector(0, 5),
         thrustDirection: new Vector(0, 10),
-        thrustFn: input => input.right,
+        thrustFn: input => Math.max(input.right, input.rotateCCW),
         rotation: 1.57
       })
     ]
@@ -96,6 +98,8 @@ export class AppComponent implements OnInit, AfterViewInit {
   triggerRight = 0;
   dPadLeft = 0;
   dPadRight = 0;
+  rotateCCW = 0;
+  rotateCW = 0;
 
   fps: number = 0;
   private deltaT: number = 0;
@@ -126,7 +130,13 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
+    this.renderer = new CanvasRenderer(this.canvasRef.nativeElement);
     this.gameLoop();
+  }
+
+  @HostListener('window:resize')
+  onResize() {
+    this.renderer?.resize();
   }
 
   start() {
@@ -143,10 +153,14 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.triggerLeft = 1;
     } else if ($event.key === 'ArrowRight') {
       this.triggerRight = 1;
-    } else if ($event.key === 'd') {
-      this.dPadRight = 1;
     } else if ($event.key === 'a') {
       this.dPadLeft = 1;
+    } else if ($event.key === 'd') {
+      this.dPadRight = 1;
+    } else if ($event.key === 'q') {
+      this.rotateCCW = 1;
+    } else if ($event.key === 'e') {
+      this.rotateCW = 1;
     }
   }
 
@@ -156,10 +170,14 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.triggerLeft = 0;
     } else if ($event.key === 'ArrowRight') {
       this.triggerRight = 0;
-    } else if ($event.key === 'd') {
-      this.dPadRight = 0;
     } else if ($event.key === 'a') {
       this.dPadLeft = 0;
+    } else if ($event.key === 'd') {
+      this.dPadRight = 0;
+    } else if ($event.key === 'q') {
+      this.rotateCCW = 0;
+    } else if ($event.key === 'e') {
+      this.rotateCW = 0;
     }
   }
 
@@ -170,15 +188,19 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   private draw() {
     this.calcFps();
-    this.spaceshipComponent?.tick(
-      this.deltaT,
-      {
+
+    if (this.deltaT <= 1) {
+      this.spaceship.tick(this.deltaT, {
         thrustLeft: this.triggerLeft,
         thrustRight: this.triggerRight,
         left: this.dPadLeft,
         right: this.dPadRight,
-      }
-    );
+        rotateCCW: this.rotateCCW,
+        rotateCW: this.rotateCW,
+      });
+    }
+
+    this.renderer.render(this.spaceship);
     this.cdr.markForCheck();
   }
 

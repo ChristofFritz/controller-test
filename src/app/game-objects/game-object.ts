@@ -5,6 +5,8 @@ export interface ThrustInput {
   thrustRight: number;
   left: number;
   right: number;
+  rotateCCW: number;
+  rotateCW: number;
 }
 
 export class GameObject {

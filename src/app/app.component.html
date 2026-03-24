@@ -8,8 +8,10 @@ Controls:
 =====================|===============|=================
 Left back thruster   | Left  trigger | left arrow key
 Right back thruster  | Right trigger | right arrow key
-Left side thrusters  | D-Pad right   | d key
-Right side thrusters | D-Pad left    | a key
+Strafe left          | D-Pad left    | a key
+Strafe right         | D-Pad right   | d key
+Rotate CCW           |               | q key
+Rotate CW            |               | e key
 </pre>
 
 <br>
@@ -51,10 +53,6 @@ Right side thrusters | D-Pad left    | a key
   }
 </div>
 
-<app-space-ship
-  [spaceship]="spaceship"
-  [thrustLeft]="triggerLeft"
-  [thrustRight]="triggerRight"
-/>
+<canvas #gameCanvas></canvas>
 
 <router-outlet />
