@@ -1,27 +1,49 @@
-# ControllerTest
+# Cave Pilot
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.0.5.
+A 2D top-down spaceship game built with Angular 18 and HTML5 Canvas. Navigate a procedurally generated cave, follow a path through checkpoints, and reach the goal.
 
-## Development server
+## Gameplay
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+- Fly a thrust-based spaceship through a Perlin noise generated cave
+- Follow the marked path from start (S) to goal (G)
+- Pass through checkpoints in order to earn points (+100 each)
+- Skipping checkpoints costs points (-150 each)
+- Stay close to the path to build a proximity multiplier (0.5x - 2.0x)
+- Colliding with walls deals damage based on impact speed
+- Ship respawns at start on death
+- Final score shown on reaching the goal
 
-## Code scaffolding
+## Controls
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+| Action | Keyboard | Controller |
+|---|---|---|
+| Left thruster | Arrow Left | Left trigger |
+| Right thruster | Arrow Right | Right trigger |
+| Strafe left | A | D-Pad left |
+| Strafe right | D | D-Pad right |
+| Rotate CCW | Q | - |
+| Rotate CW | E | - |
+
+## Development
+
+```sh
+npm install
+npm start
+```
+
+Open `http://localhost:4444`.
 
 ## Build
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+```sh
+npm run build
+```
 
-## Running unit tests
+## Tech
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- Angular 18 (standalone components)
+- HTML5 Canvas 2D rendering
+- Perlin noise terrain generation
+- Marching squares for smooth cave contours
+- Rigid body impulse collision physics
+- Gamepad API support
