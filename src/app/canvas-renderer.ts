@@ -13,6 +13,8 @@ export interface RenderState {
   proximityMultiplier: number;
   finished: boolean;
   finalScore: number;
+  fps: number;
+  version: string;
 }
 
 const FLAME_COLORS = ['#ff8c00', '#ffa500', '#ffb733', '#ffd066'];
@@ -275,6 +277,14 @@ export class CanvasRenderer {
 
   private drawGameHud(state: RenderState) {
     const ctx = this.ctx;
+
+    // Version and FPS
+    ctx.fillStyle = '#666';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`v${state.version}  FPS: ${state.fps}`, 10, 10);
+
     const x = this.width - 220;
     let y = 40;
 

@@ -1,27 +1,14 @@
-import {inject, Injectable, InjectionToken} from '@angular/core';
-import {BehaviorSubject} from 'rxjs';
 import {isEqualGamepadState} from './util';
 
-export class GamepadConfig {
-  constructor(v: Partial<GamepadConfig> | null) {
-  }
-}
-
-export const GAMEPAD_CONFIG = new InjectionToken<GamepadConfig>('GAMEPAD_CONFIG')
-
-@Injectable({
-  providedIn: 'root'
-})
 export class GamepadService {
   active = false;
   gamepadIndex?: number;
-  gamepadState$ = new BehaviorSubject<Gamepad | null>(null);
-  private gamepadConfig = new GamepadConfig(inject(GAMEPAD_CONFIG, {optional: true}));
+  currentState: Gamepad | null = null;
+  onStateChange?: (state: Gamepad) => void;
   private shouldStart = false;
 
   constructor() {
     window.addEventListener("gamepadconnected", (e) => {
-
       if (this.shouldStart) {
         this.start();
       }
@@ -68,7 +55,7 @@ export class GamepadService {
     this.active = false;
     this.shouldStart = false;
     this.gamepadIndex = undefined;
-    this.gamepadState$.next(null);
+    this.currentState = null;
   }
 
   private updateState(gamepad: Gamepad) {
@@ -76,10 +63,9 @@ export class GamepadService {
       return;
     }
 
-    if (!this.gamepadState$.value) {
-      this.gamepadState$.next(gamepad);
-    } else if (!isEqualGamepadState(this.gamepadState$.value, gamepad)) {
-      this.gamepadState$.next(gamepad);
+    if (!this.currentState || !isEqualGamepadState(this.currentState, gamepad)) {
+      this.currentState = gamepad;
+      this.onStateChange?.(gamepad);
     }
   }
 

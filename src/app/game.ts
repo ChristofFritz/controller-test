@@ -1,7 +1,4 @@
-import {AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, inject, OnInit, ViewChild} from '@angular/core';
-import {RouterOutlet} from '@angular/router';
-import {GamepadService} from './gamepad.service';
-import {filter} from 'rxjs';
+import {GamepadService} from './gamepad';
 import {GameObject, Spaceship} from './game-objects/game-object';
 import {Vector} from './vector';
 import {CanvasRenderer} from './canvas-renderer';
@@ -13,37 +10,41 @@ import {MarchingSquares} from './terrain/marching-squares';
 import {PathGenerator, GamePath, getPathProximity, PathProximity, POINTS_PER_CHECKPOINT, SKIP_PENALTY} from './terrain/path-generator';
 import {version} from '../../package.json';
 
-@Component({
-    selector: 'app-root',
-    imports: [RouterOutlet],
-    templateUrl: './app.component.html',
-    styleUrl: './app.component.scss'
-})
-export class AppComponent implements OnInit, AfterViewInit {
-  @ViewChild('gameCanvas', {static: true}) canvasRef!: ElementRef<HTMLCanvasElement>;
-
-  private renderer!: CanvasRenderer;
-  private camera!: Camera;
-  private caveGrid!: CaveGrid;
-  private terrainRenderer!: TerrainRenderer;
-  private terrainCollision!: TerrainCollision;
-  private gamePath!: GamePath;
-  private spawnPoint!: Vector;
+export class Game {
+  private renderer: CanvasRenderer;
+  private camera: Camera;
+  private caveGrid: CaveGrid;
+  private terrainRenderer: TerrainRenderer;
+  private terrainCollision: TerrainCollision;
+  private gamePath: GamePath;
+  private spawnPoint: Vector;
   private proximity: PathProximity | null = null;
+  private gamepadService: GamepadService;
 
   // Game state
-  nextCheckpoint = 1;
-  reachedCheckpoints = 0;
-  skippedCheckpoints = 0;
-  proximitySum = 0;
-  proximitySamples = 0;
-  finished = false;
-  finalScore = 0;
+  private nextCheckpoint = 1;
+  private reachedCheckpoints = 0;
+  private skippedCheckpoints = 0;
+  private proximitySum = 0;
+  private proximitySamples = 0;
+  private finished = false;
+  private finalScore = 0;
 
-  version = version;
+  // Input state
+  private triggerLeft = 0;
+  private triggerRight = 0;
+  private dPadLeft = 0;
+  private dPadRight = 0;
+  private rotateCCW = 0;
+  private rotateCW = 0;
 
-  spaceship = new Spaceship({
-    position: new Vector(0, 0), // will be set to spawn point
+  // Timing
+  private fps = 0;
+  private deltaT = 0;
+  private oldTimeStamp = 0;
+
+  private spaceship = new Spaceship({
+    position: new Vector(0, 0),
     width: 16,
     height: 30,
     mass: 1,
@@ -114,106 +115,83 @@ export class AppComponent implements OnInit, AfterViewInit {
     ]
   });
 
-  currentState?: Gamepad;
-  triggerLeft = 0;
-  triggerRight = 0;
-  dPadLeft = 0;
-  dPadRight = 0;
-  rotateCCW = 0;
-  rotateCW = 0;
+  constructor(container: HTMLElement) {
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
 
-  fps: number = 0;
-  private deltaT: number = 0;
-  private oldTimeStamp: number = 0;
-
-  private gamepadService = inject(GamepadService);
-  private cdr = inject(ChangeDetectorRef);
-
-  ngOnInit() {
     // Generate cave
     this.caveGrid = new CaveGrid();
     this.caveGrid.generate();
 
-    // Generate path (clears corridor in cave grid, must happen before marching squares)
+    // Generate path
     const pathGen = new PathGenerator(this.caveGrid);
     this.gamePath = pathGen.generate();
     this.spawnPoint = this.gamePath.start;
     this.spaceship.respawn(this.spawnPoint);
 
-    // Terrain systems (after path carves corridors)
+    // Terrain systems
     const marchingSquares = new MarchingSquares(this.caveGrid);
     this.terrainRenderer = new TerrainRenderer(this.caveGrid, marchingSquares);
     this.terrainCollision = new TerrainCollision(this.caveGrid, marchingSquares);
 
-    // Gamepad
-    this.gamepadService.start();
-    this.gamepadService
-      .gamepadState$
-      .pipe(filter(state => state != null))
-      .subscribe({
-        next: state => {
-          if (state) {
-            this.currentState = state;
-            this.triggerLeft = state.buttons[6].value;
-            this.triggerRight = state.buttons[7].value;
-            this.dPadLeft = state.buttons[14].value;
-            this.dPadRight = state.buttons[15].value;
-          }
-        }
-      });
-  }
-
-  ngAfterViewInit() {
-    this.renderer = new CanvasRenderer(this.canvasRef.nativeElement);
+    // Renderer and camera
+    this.renderer = new CanvasRenderer(canvas);
     this.camera = new Camera(window.innerWidth, window.innerHeight);
     this.camera.update(this.spawnPoint);
+
+    // Gamepad
+    this.gamepadService = new GamepadService();
+    this.gamepadService.onStateChange = (state) => {
+      this.triggerLeft = state.buttons[6].value;
+      this.triggerRight = state.buttons[7].value;
+      this.dPadLeft = state.buttons[14].value;
+      this.dPadRight = state.buttons[15].value;
+    };
+    this.gamepadService.start();
+
+    // Event listeners
+    window.addEventListener('keydown', (e) => this.onKeyDown(e));
+    window.addEventListener('keyup', (e) => this.onKeyUp(e));
+    window.addEventListener('resize', () => this.onResize());
+
+    // Start game loop
     this.gameLoop();
   }
 
-  @HostListener('window:resize')
-  onResize() {
-    this.renderer?.resize();
-    this.camera?.resize(window.innerWidth, window.innerHeight);
+  private onResize() {
+    this.renderer.resize();
+    this.camera.resize(window.innerWidth, window.innerHeight);
   }
 
-  start() {
-    this.gamepadService.start();
-  }
-
-  stop() {
-    this.gamepadService.stop();
-  }
-
-  @HostListener('window:keydown', ['$event'])
-  onKeyDown($event: KeyboardEvent) {
-    if ($event.key === 'ArrowLeft') {
+  private onKeyDown(e: KeyboardEvent) {
+    if (e.key === 'ArrowLeft') {
       this.triggerLeft = 1;
-    } else if ($event.key === 'ArrowRight') {
+    } else if (e.key === 'ArrowRight') {
       this.triggerRight = 1;
-    } else if ($event.key === 'a') {
+    } else if (e.key === 'a') {
       this.dPadLeft = 1;
-    } else if ($event.key === 'd') {
+    } else if (e.key === 'd') {
       this.dPadRight = 1;
-    } else if ($event.key === 'q') {
+    } else if (e.key === 'q') {
       this.rotateCCW = 1;
-    } else if ($event.key === 'e') {
+    } else if (e.key === 'e') {
       this.rotateCW = 1;
     }
   }
 
-  @HostListener('window:keyup', ['$event'])
-  onKeyUp($event: KeyboardEvent) {
-    if ($event.key === 'ArrowLeft') {
+  private onKeyUp(e: KeyboardEvent) {
+    if (e.key === 'ArrowLeft') {
       this.triggerLeft = 0;
-    } else if ($event.key === 'ArrowRight') {
+    } else if (e.key === 'ArrowRight') {
       this.triggerRight = 0;
-    } else if ($event.key === 'a') {
+    } else if (e.key === 'a') {
       this.dPadLeft = 0;
-    } else if ($event.key === 'd') {
+    } else if (e.key === 'd') {
       this.dPadRight = 0;
-    } else if ($event.key === 'q') {
+    } else if (e.key === 'q') {
       this.rotateCCW = 0;
-    } else if ($event.key === 'e') {
+    } else if (e.key === 'e') {
       this.rotateCW = 0;
     }
   }
@@ -249,13 +227,11 @@ export class AppComponent implements OnInit, AfterViewInit {
       if (!this.finished) {
         this.proximity = getPathProximity(this.gamePath, this.spaceship.position);
 
-        // Track proximity for multiplier
         const maxDist = 120;
         const proximityRatio = Math.max(0, 1 - this.proximity.distance / maxDist);
         this.proximitySum += proximityRatio;
         this.proximitySamples++;
 
-        // Check if ship reached the next checkpoint
         const pts = this.gamePath.points;
         if (this.nextCheckpoint < pts.length) {
           const distToCheckpoint = this.spaceship.position.subtract(pts[this.nextCheckpoint]).length();
@@ -264,13 +240,11 @@ export class AppComponent implements OnInit, AfterViewInit {
             this.reachedCheckpoints++;
             this.nextCheckpoint++;
           } else if (this.proximity.segmentIndex >= this.nextCheckpoint) {
-            // Skipped past this checkpoint
             this.skippedCheckpoints++;
             this.nextCheckpoint++;
           }
         }
 
-        // Check goal reached (last point)
         const distToGoal = this.spaceship.position.subtract(this.gamePath.goal).length();
         if (distToGoal < this.gamePath.checkpointRadius) {
           this.finishGame();
@@ -291,14 +265,14 @@ export class AppComponent implements OnInit, AfterViewInit {
       proximityMultiplier: this.getProximityMultiplier(),
       finished: this.finished,
       finalScore: this.finalScore,
+      fps: this.fps,
+      version: version,
     });
-    this.cdr.markForCheck();
   }
 
   private getProximityMultiplier(): number {
     if (this.proximitySamples === 0) return 1;
     const avg = this.proximitySum / this.proximitySamples;
-    // Map [0, 1] average proximity to [0.5, 2.0] multiplier
     return 0.5 + avg * 1.5;
   }
 
