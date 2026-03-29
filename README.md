@@ -1,6 +1,6 @@
-# Cave Pilot
+# Hollow Burn
 
-A 2D top-down spaceship game built with Angular 18 and HTML5 Canvas. Navigate a procedurally generated cave, follow a path through checkpoints, and reach the goal.
+A 2D top-down spaceship game built with TypeScript and Canvas. Fly through procedurally generated caves, hit checkpoints, and reach the goal.
 
 ## Gameplay
 
@@ -24,11 +24,15 @@ A 2D top-down spaceship game built with Angular 18 and HTML5 Canvas. Navigate a 
 | Rotate CCW | Q | - |
 | Rotate CW | E | - |
 
+## Play
+
+[christoffritz.github.io/controller-test](https://christoffritz.github.io/controller-test/)
+
 ## Development
 
 ```sh
 npm install
-npm start
+npm run dev
 ```
 
 Open `http://localhost:4444`.
@@ -41,7 +45,7 @@ npm run build
 
 ## Tech
 
-- Angular 18 (standalone components)
+- TypeScript + Vite
 - HTML5 Canvas 2D rendering
 - Perlin noise terrain generation
 - Marching squares for smooth cave contours

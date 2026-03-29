@@ -85,6 +85,81 @@ export class CanvasRenderer {
     }
   }
 
+  drawStartScreen() {
+    const ctx = this.ctx;
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+
+    // Background
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // Title
+    ctx.fillStyle = '#ff8c00';
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('HOLLOW BURN', cx, cy - 140);
+
+    // Subtitle
+    ctx.fillStyle = '#666';
+    ctx.font = '14px monospace';
+    ctx.fillText('Navigate the caves. Hit the checkpoints. Reach the goal.', cx, cy - 90);
+
+    // Controls table
+    const controls = [
+      ['LEFT / RIGHT THRUSTER', '\u2190  \u2192', 'LT  RT'],
+      ['STRAFE LEFT / RIGHT',   'A  D',   'D-Pad'],
+      ['ROTATE CCW / CW',       'Q  E',   ''],
+    ];
+
+    const tableTop = cy - 40;
+    const colAction = cx - 160;
+    const colKb = cx + 60;
+    const colPad = cx + 160;
+    const rowH = 28;
+
+    // Header
+    ctx.fillStyle = '#888';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('ACTION', colAction, tableTop);
+    ctx.textAlign = 'center';
+    ctx.fillText('KEYBOARD', colKb, tableTop);
+    ctx.fillText('GAMEPAD', colPad, tableTop);
+
+    // Divider
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(colAction, tableTop + 14);
+    ctx.lineTo(colPad + 60, tableTop + 14);
+    ctx.stroke();
+
+    // Rows
+    ctx.font = '12px monospace';
+    for (let i = 0; i < controls.length; i++) {
+      const y = tableTop + 32 + i * rowH;
+      ctx.fillStyle = '#aaa';
+      ctx.textAlign = 'left';
+      ctx.fillText(controls[i][0], colAction, y);
+      ctx.fillStyle = '#ddd';
+      ctx.textAlign = 'center';
+      ctx.fillText(controls[i][1], colKb, y);
+      ctx.fillStyle = controls[i][2] ? '#ddd' : '#444';
+      ctx.fillText(controls[i][2] || '-', colPad, y);
+    }
+
+    // Start prompt
+    const pulse = 0.4 + 0.6 * Math.abs(Math.sin(Date.now() / 600));
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#ff8c00';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRESS ANY KEY TO START', cx, cy + 100);
+    ctx.globalAlpha = 1;
+  }
+
   private drawSpaceship(ship: Spaceship) {
     const ctx = this.ctx;
 

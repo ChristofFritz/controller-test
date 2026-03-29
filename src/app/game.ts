@@ -22,6 +22,7 @@ export class Game {
   private gamepadService: GamepadService;
 
   // Game state
+  private started = false;
   private nextCheckpoint = 1;
   private reachedCheckpoints = 0;
   private skippedCheckpoints = 0;
@@ -143,6 +144,10 @@ export class Game {
     // Gamepad
     this.gamepadService = new GamepadService();
     this.gamepadService.onStateChange = (state) => {
+      if (!this.started) {
+        this.started = true;
+        return;
+      }
       this.triggerLeft = state.buttons[6].value;
       this.triggerRight = state.buttons[7].value;
       this.dPadLeft = state.buttons[14].value;
@@ -165,6 +170,10 @@ export class Game {
   }
 
   private onKeyDown(e: KeyboardEvent) {
+    if (!this.started) {
+      this.started = true;
+      return;
+    }
     if (e.key === 'ArrowLeft') {
       this.triggerLeft = 1;
     } else if (e.key === 'ArrowRight') {
@@ -203,6 +212,11 @@ export class Game {
 
   private draw() {
     this.calcFps();
+
+    if (!this.started) {
+      this.renderer.drawStartScreen();
+      return;
+    }
 
     if (this.deltaT <= 1) {
       // Physics
