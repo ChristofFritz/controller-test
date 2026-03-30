@@ -1,13 +1,5 @@
 import {Vector} from '../vector';
-
-export interface ThrustInput {
-  thrustLeft: number;
-  thrustRight: number;
-  left: number;
-  right: number;
-  rotateCCW: number;
-  rotateCW: number;
-}
+import {InputState} from '../input-state';
 
 export class GameObject {
   parent?: GameObject;
@@ -33,7 +25,8 @@ export class GameObject {
   origin: Vector;
 
   thrust: number;
-  thrustFn: (input: ThrustInput) => number;
+  keys: string[];
+  gamepadButtons: number[];
   thrustOrigin: Vector;
   thrustDirection: Vector;
 
@@ -54,7 +47,8 @@ export class GameObject {
     this.angularVelocity = v?.angularVelocity ?? 0;
     this.origin = v?.origin ? new Vector(v.origin.x, v.origin.y) : new Vector();
     this.thrust = v?.thrust ?? 0;
-    this.thrustFn = v?.thrustFn || ((input: ThrustInput) => 0);
+    this.keys = v?.keys ? [...v.keys] : [];
+    this.gamepadButtons = v?.gamepadButtons ? [...v.gamepadButtons] : [];
     this.thrustOrigin = v?.thrustOrigin ? new Vector(v.thrustOrigin.x, v.thrustOrigin.y) : new Vector();
     this.thrustDirection = v?.thrustDirection ? new Vector(v.thrustDirection.x, v.thrustDirection.y) : new Vector(0, 1);
   }
@@ -98,8 +92,7 @@ export class Spaceship extends GameObject {
     }));
   }
 
-  tick(deltaT: number, thrustInput: ThrustInput) {
-
+  tick(deltaT: number, input: InputState) {
     if (deltaT > 1) {
       return;
     }
@@ -112,8 +105,7 @@ export class Spaceship extends GameObject {
     this.angularAcceleration = 0;
 
     this.thrusters.forEach(thruster => {
-
-      thruster.thrust = thruster.thrustFn(thrustInput);
+      thruster.thrust = input.getThrustForBindings(thruster.keys, thruster.gamepadButtons);
       const thrustVector = thruster.thrustDirection.rotate(thruster.rotation).scale(thruster.thrust);
       const torque = thruster.position.cross(thrustVector);
       const angularAcceleration = torque / this.inertia;
@@ -121,13 +113,11 @@ export class Spaceship extends GameObject {
 
       this.acceleration = this.acceleration.add(linearAcceleration);
       this.angularAcceleration = this.angularAcceleration + angularAcceleration;
-
     });
 
     this.angularVelocity = this.angularVelocity + this.angularAcceleration * deltaT;
     this.rotation = this.rotation - this.angularVelocity * deltaT;
     this.velocity = this.velocity.add(this.acceleration.rotate(this.rotation).scale(deltaT));
     this.position = this.position?.subtract(this.velocity.scale(deltaT));
-
   }
 }

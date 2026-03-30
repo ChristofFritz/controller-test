@@ -3,6 +3,7 @@ import {Camera} from './camera';
 import {TerrainRenderer} from './terrain/terrain-renderer';
 import {GamePath, PathProximity} from './terrain/path-generator';
 import {Vector} from './vector';
+import {ShipConfig, ThrusterConfig} from './ship-config';
 
 export interface RenderState {
   path: GamePath;
@@ -22,9 +23,14 @@ const BG_COLOR = '#0a0a1a';
 const MAX_SCORING_DISTANCE = 120; // beyond this distance, no points
 
 export class CanvasRenderer {
-  private ctx: CanvasRenderingContext2D;
-  private width = 0;
-  private height = 0;
+  ctx: CanvasRenderingContext2D;
+  width = 0;
+  height = 0;
+
+  // Button bounds for hit testing
+  private playBtnBounds = {x: 0, y: 0, w: 0, h: 0};
+  private editorBtnBounds = {x: 0, y: 0, w: 0, h: 0};
+  private menuBtnBounds = {x: 0, y: 0, w: 0, h: 0};
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -85,7 +91,7 @@ export class CanvasRenderer {
     }
   }
 
-  drawStartScreen() {
+  drawStartScreen(shipConfig: ShipConfig) {
     const ctx = this.ctx;
     const cx = this.width / 2;
     const cy = this.height / 2;
@@ -99,68 +105,194 @@ export class CanvasRenderer {
     ctx.font = 'bold 48px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('HOLLOW BURN', cx, cy - 140);
+    ctx.fillText('HOLLOW BURN', cx, cy - 250);
 
     // Subtitle
     ctx.fillStyle = '#666';
     ctx.font = '14px monospace';
-    ctx.fillText('Navigate the caves. Hit the checkpoints. Reach the goal.', cx, cy - 90);
+    ctx.fillText('Navigate the caves. Hit the checkpoints. Reach the goal.', cx, cy - 210);
 
-    // Controls table
-    const controls = [
-      ['LEFT / RIGHT THRUSTER', '\u2190  \u2192', 'LT  RT'],
-      ['STRAFE LEFT / RIGHT',   'A  D',   'D-Pad'],
-      ['ROTATE CCW / CW',       'Q  E',   ''],
-    ];
+    // Ship diagram with key labels
+    this.drawShipDiagram(ctx, cx, cy - 20, shipConfig);
 
-    const tableTop = cy - 40;
-    const colAction = cx - 160;
-    const colKb = cx + 60;
-    const colPad = cx + 160;
-    const rowH = 28;
+    // Buttons
+    const btnW = 180;
+    const btnH = 40;
+    const btnY = cy + 200;
+    const btnGap = 20;
 
-    // Header
-    ctx.fillStyle = '#888';
-    ctx.font = 'bold 12px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('ACTION', colAction, tableTop);
-    ctx.textAlign = 'center';
-    ctx.fillText('KEYBOARD', colKb, tableTop);
-    ctx.fillText('GAMEPAD', colPad, tableTop);
-
-    // Divider
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(colAction, tableTop + 14);
-    ctx.lineTo(colPad + 60, tableTop + 14);
-    ctx.stroke();
-
-    // Rows
-    ctx.font = '12px monospace';
-    for (let i = 0; i < controls.length; i++) {
-      const y = tableTop + 32 + i * rowH;
-      ctx.fillStyle = '#aaa';
-      ctx.textAlign = 'left';
-      ctx.fillText(controls[i][0], colAction, y);
-      ctx.fillStyle = '#ddd';
-      ctx.textAlign = 'center';
-      ctx.fillText(controls[i][1], colKb, y);
-      ctx.fillStyle = controls[i][2] ? '#ddd' : '#444';
-      ctx.fillText(controls[i][2] || '-', colPad, y);
-    }
-
-    // Start prompt
-    const pulse = 0.4 + 0.6 * Math.abs(Math.sin(Date.now() / 600));
-    ctx.globalAlpha = pulse;
+    // Play button
+    this.playBtnBounds = {x: cx - btnW - btnGap / 2, y: btnY, w: btnW, h: btnH};
     ctx.fillStyle = '#ff8c00';
+    ctx.fillRect(this.playBtnBounds.x, btnY, btnW, btnH);
+    ctx.fillStyle = '#0a0a1a';
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('PRESS ANY KEY TO START', cx, cy + 100);
-    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PLAY', cx - btnW / 2 - btnGap / 2, btnY + btnH / 2);
+
+    // Edit Ship button
+    this.editorBtnBounds = {x: cx + btnGap / 2, y: btnY, w: btnW, h: btnH};
+    ctx.strokeStyle = '#ff8c00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(this.editorBtnBounds.x, btnY, btnW, btnH);
+    ctx.fillStyle = '#ff8c00';
+    ctx.fillText('EDIT SHIP', cx + btnW / 2 + btnGap / 2, btnY + btnH / 2);
+
+    // Hint
+    ctx.fillStyle = '#444';
+    ctx.font = '12px monospace';
+    ctx.fillText('or press any key to play', cx, btnY + btnH + 24);
   }
 
-  private drawSpaceship(ship: Spaceship) {
+  getStartScreenAction(mx: number, my: number): 'play' | 'editor' | null {
+    const b = this.playBtnBounds;
+    if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) return 'play';
+    const e = this.editorBtnBounds;
+    if (mx >= e.x && mx <= e.x + e.w && my >= e.y && my <= e.y + e.h) return 'editor';
+    return null;
+  }
+
+  private drawShipDiagram(ctx: CanvasRenderingContext2D, cx: number, cy: number, config: ShipConfig) {
+    const scale = 5;
+    const ship = config;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Faint grid lines behind ship
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 0.5;
+    const gridExtent = 100;
+    const gridStep = 10 * scale;
+    ctx.beginPath();
+    for (let x = -gridExtent; x <= gridExtent; x += gridStep) {
+      ctx.moveTo(x, -gridExtent);
+      ctx.lineTo(x, gridExtent);
+    }
+    for (let y = -gridExtent; y <= gridExtent; y += gridStep) {
+      ctx.moveTo(-gridExtent, y);
+      ctx.lineTo(gridExtent, y);
+    }
+    ctx.stroke();
+
+    // Ship hull
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(
+      -ship.origin.x * scale,
+      -ship.origin.y * scale,
+      ship.width * scale,
+      ship.height * scale,
+    );
+
+    // Thrusters + key labels
+    for (const t of config.thrusters) {
+      this.drawDiagramThruster(ctx, t, scale);
+    }
+
+    ctx.restore();
+  }
+
+  private drawDiagramThruster(ctx: CanvasRenderingContext2D, t: ThrusterConfig, scale: number) {
+    // Thruster body
+    const tx = t.position.x * scale;
+    const ty = t.position.y * scale;
+
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(t.rotation);
+    ctx.translate(-t.origin.x * scale, -t.origin.y * scale);
+
+    ctx.strokeStyle = '#8bf';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, t.width * scale, t.height * scale);
+
+    // Thrust direction indicator
+    const dirLen = Math.sqrt(t.thrustDirection.x ** 2 + t.thrustDirection.y ** 2);
+    if (dirLen > 0) {
+      const arrowLen = Math.min(dirLen * 0.8, 12) * scale;
+      const nx = t.thrustDirection.x / dirLen;
+      const ny = t.thrustDirection.y / dirLen;
+      const ox = t.origin.x * scale;
+      const oy = t.origin.y * scale;
+      ctx.strokeStyle = '#8bf44';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(ox + nx * arrowLen, oy + ny * arrowLen);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // Key labels — position them outward from ship center
+    if (t.keys.length === 0 && t.gamepadButtons.length === 0) return;
+
+    const labelText = this.formatBindings(t);
+
+    // Compute label anchor: extend outward from center
+    const angle = Math.atan2(ty, tx);
+    const dist = Math.sqrt(tx * tx + ty * ty);
+    const labelDist = dist + 50;
+    const lx = Math.cos(angle) * labelDist;
+    const ly = Math.sin(angle) * labelDist;
+
+    // Connector line
+    ctx.strokeStyle = '#8bf';
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.4;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(lx, ly);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // Key badge
+    ctx.fillStyle = '#0a0a1a';
+    ctx.strokeStyle = '#8bf';
+    ctx.lineWidth = 1;
+    ctx.font = '11px monospace';
+    const measuredWidth = ctx.measureText(labelText).width;
+    const padX = 8;
+    const padY = 4;
+    const badgeW = measuredWidth + padX * 2;
+    const badgeH = 14 + padY * 2;
+    const badgeX = lx - badgeW / 2;
+    const badgeY = ly - badgeH / 2;
+
+    ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+    ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+
+    ctx.fillStyle = '#8bf';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, lx, ly);
+  }
+
+  private formatBindings(t: ThrusterConfig): string {
+    const parts: string[] = [];
+    for (const key of t.keys) {
+      parts.push(this.formatKeyName(key));
+    }
+    for (const btn of t.gamepadButtons) {
+      parts.push(`GP${btn}`);
+    }
+    return parts.join(' / ');
+  }
+
+  private formatKeyName(key: string): string {
+    const map: Record<string, string> = {
+      'ArrowLeft': '\u2190', 'ArrowRight': '\u2192',
+      'ArrowUp': '\u2191', 'ArrowDown': '\u2193',
+      ' ': 'Space',
+    };
+    return map[key] ?? key.toUpperCase();
+  }
+
+  drawSpaceship(ship: Spaceship) {
     const ctx = this.ctx;
 
     ctx.save();
@@ -179,7 +311,7 @@ export class CanvasRenderer {
     ctx.restore();
   }
 
-  private drawThruster(thruster: GameObject) {
+  drawThruster(thruster: GameObject) {
     const ctx = this.ctx;
     const pos = thruster.cssPosition;
 
@@ -199,7 +331,7 @@ export class CanvasRenderer {
     ctx.restore();
   }
 
-  private drawFlame(thruster: GameObject) {
+  drawFlame(thruster: GameObject) {
     const ctx = this.ctx;
     const intensity = thruster.thrust;
 
@@ -414,7 +546,7 @@ export class CanvasRenderer {
 
     // Box
     const boxW = 360;
-    const boxH = 240;
+    const boxH = 265;
     ctx.fillStyle = '#1a1a2e';
     ctx.strokeStyle = '#444';
     ctx.lineWidth = 2;
@@ -455,9 +587,25 @@ export class CanvasRenderer {
     ctx.textAlign = 'center';
     ctx.fillText(`${state.finalScore} pts`, cx, cy + 60);
 
-    // Restart hint
-    ctx.fillStyle = '#666';
-    ctx.font = '12px monospace';
-    ctx.fillText('Refresh to play again', cx, cy + 100);
+    // Main menu button
+    const btnW = 200;
+    const btnH = 36;
+    const btnX = cx - btnW / 2;
+    const btnY = cy + 85;
+    this.menuBtnBounds = {x: btnX, y: btnY, w: btnW, h: btnH};
+    ctx.strokeStyle = '#ffdd33';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(btnX, btnY, btnW, btnH);
+    ctx.fillStyle = '#ffdd33';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MAIN MENU', cx, btnY + btnH / 2);
+  }
+
+  getFinishScreenAction(mx: number, my: number): 'menu' | null {
+    const b = this.menuBtnBounds;
+    if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) return 'menu';
+    return null;
   }
 }
