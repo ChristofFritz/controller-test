@@ -309,6 +309,12 @@ export class Game {
 
       if (this.spaceship.isDead()) {
         this.spaceship.respawn(this.spawnPoint);
+        this.nextCheckpoint = 1;
+        this.reachedCheckpoints = 0;
+        this.skippedCheckpoints = 0;
+        this.proximitySum = 0;
+        this.proximitySamples = 0;
+        this.proximity = null;
       }
 
       if (this.state === GameState.PLAYING) {

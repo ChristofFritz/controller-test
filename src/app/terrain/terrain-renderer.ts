@@ -2,8 +2,9 @@ import {CaveGrid} from './cave-grid';
 import {MarchingSquares} from './marching-squares';
 import {Camera} from '../camera';
 
-const SOLID_COLOR = '#2a1a0a';
-const CONTOUR_COLOR = '#5a4a3a';
+const ROCK_BASE_COLOR = '#37342f';
+const ROCK_RIM_DARK = '#201d19';
+const ROCK_RIM_LIGHT = '#6a6258';
 const TILE_SIZE = 512; // pixels
 
 export class TerrainRenderer {
@@ -59,14 +60,44 @@ export class TerrainRenderer {
     // Translate so world coords map into the tile canvas
     ctx.translate(-worldX, -worldY);
 
-    // Fill solid polygons
-    ctx.fillStyle = SOLID_COLOR;
+    this.buildSolidPath(ctx, startX, startY, endX, endY);
+    ctx.fillStyle = ROCK_BASE_COLOR;
+    ctx.fill();
+
+    // Broad layered shading for a natural stone body.
+    ctx.save();
+    this.buildSolidPath(ctx, startX, startY, endX, endY);
+    ctx.clip();
+
+    const topLight = ctx.createLinearGradient(0, 0, 0, this.grid.worldHeight);
+    topLight.addColorStop(0, 'rgba(238, 232, 220, 0.08)');
+    topLight.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+    topLight.addColorStop(1, 'rgba(0, 0, 0, 0.18)');
+    ctx.fillStyle = topLight;
+    ctx.fillRect(worldX, worldY, TILE_SIZE, TILE_SIZE);
+
+    const sideLight = ctx.createLinearGradient(0, 0, this.grid.worldWidth, 0);
+    sideLight.addColorStop(0, 'rgba(0, 0, 0, 0.12)');
+    sideLight.addColorStop(0.6, 'rgba(0, 0, 0, 0)');
+    sideLight.addColorStop(1, 'rgba(220, 210, 195, 0.07)');
+    ctx.fillStyle = sideLight;
+    ctx.fillRect(worldX, worldY, TILE_SIZE, TILE_SIZE);
+
+    this.drawRockTones(ctx, startX, startY, endX, endY);
+    ctx.restore();
+
+    this.drawContours(ctx, startX, startY, endX, endY);
+
+    this.tileCache.set(key, tile);
+    return tile;
+  }
+
+  private buildSolidPath(ctx: OffscreenCanvasRenderingContext2D, startX: number, startY: number, endX: number, endY: number): void {
     ctx.beginPath();
     for (let y = startY; y <= endY; y++) {
       for (let x = startX; x <= endX; x++) {
         const verts = this.marchingSquares.getCellFillVertices(x, y);
         if (!verts) continue;
-
         ctx.moveTo(verts[0], verts[1]);
         for (let i = 2; i < verts.length; i += 2) {
           ctx.lineTo(verts[i], verts[i + 1]);
@@ -74,11 +105,12 @@ export class TerrainRenderer {
         ctx.closePath();
       }
     }
-    ctx.fill();
+  }
 
-    // Draw contour lines
-    ctx.strokeStyle = CONTOUR_COLOR;
-    ctx.lineWidth = 1.5;
+  private drawContours(ctx: OffscreenCanvasRenderingContext2D, startX: number, startY: number, endX: number, endY: number): void {
+    // Dark outer rim.
+    ctx.strokeStyle = ROCK_RIM_DARK;
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
     for (let y = startY; y <= endY; y++) {
       for (let x = startX; x <= endX; x++) {
@@ -91,7 +123,52 @@ export class TerrainRenderer {
     }
     ctx.stroke();
 
-    this.tileCache.set(key, tile);
-    return tile;
+    // Softer inner highlight.
+    ctx.strokeStyle = ROCK_RIM_LIGHT;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  private drawRockTones(ctx: OffscreenCanvasRenderingContext2D, startX: number, startY: number, endX: number, endY: number): void {
+    const cellSize = this.grid.config.cellSize;
+
+    for (let y = startY; y <= endY; y++) {
+      for (let x = startX; x <= endX; x++) {
+        const wx = x * cellSize;
+        const wy = y * cellSize;
+        const cx = wx + cellSize * 0.5;
+        const cy = wy + cellSize * 0.5;
+        if (!this.grid.isWorldPointSolid(cx, cy)) continue;
+
+        const n = (this.grid.getNoiseValue(x, y) + 1) * 0.5; // 0..1
+        const h = this.hash2(x, y);
+
+        // Cell-scale tonal variation (subtle, avoids noisy speckles).
+        const warm = (h & 3) * 2;
+        const shade = 24 + Math.round(n * 28);
+        ctx.fillStyle = `rgba(${shade + 10 + warm}, ${shade + 8}, ${shade + 4}, 0.14)`;
+        ctx.fillRect(wx, wy, cellSize, cellSize);
+
+        // Occasional soft darker blotches to break uniformity.
+        if ((h & 15) === 3) {
+          const r = cellSize * (0.7 + (((h >> 5) & 7) / 10));
+          const ox = ((((h >> 8) & 15) / 15) - 0.5) * cellSize * 0.6;
+          const oy = ((((h >> 12) & 15) / 15) - 0.5) * cellSize * 0.6;
+          const g = ctx.createRadialGradient(cx + ox, cy + oy, r * 0.2, cx + ox, cy + oy, r);
+          g.addColorStop(0, 'rgba(20, 18, 16, 0.14)');
+          g.addColorStop(1, 'rgba(20, 18, 16, 0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(cx + ox - r, cy + oy - r, r * 2, r * 2);
+        }
+      }
+    }
+  }
+
+  private hash2(x: number, y: number): number {
+    let h = x * 374761393 + y * 668265263;
+    h = (h ^ (h >> 13)) * 1274126177;
+    return h ^ (h >> 16);
   }
 }
