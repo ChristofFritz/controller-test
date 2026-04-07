@@ -67,6 +67,28 @@ export const DEFAULT_SHIP_CONFIG: ShipConfig = {
   ],
 };
 
+export function normalizeShipConfig(config: ShipConfig): ShipConfig {
+  const thrusters = Array.isArray(config.thrusters) ? config.thrusters : [];
+  return {
+    width: config.width,
+    height: config.height,
+    mass: config.mass,
+    inertia: config.inertia,
+    origin: {x: config.origin.x, y: config.origin.y},
+    thrusters: thrusters.map((t) => ({
+      position: {x: t.position.x, y: t.position.y},
+      width: t.width,
+      height: t.height,
+      rotation: t.rotation,
+      origin: {x: t.origin.x, y: t.origin.y},
+      thrustOrigin: {x: t.thrustOrigin.x, y: t.thrustOrigin.y},
+      thrustDirection: {x: t.thrustDirection.x, y: t.thrustDirection.y},
+      keys: Array.isArray(t.keys) ? [...t.keys] : [],
+      gamepadButtons: Array.isArray(t.gamepadButtons) ? [...t.gamepadButtons] : [],
+    })),
+  };
+}
+
 export function configToSpaceship(config: ShipConfig): Spaceship {
   return new Spaceship({
     position: new Vector(0, 0),
@@ -91,7 +113,7 @@ export function configToSpaceship(config: ShipConfig): Spaceship {
 }
 
 export function spaceshipToConfig(ship: Spaceship): ShipConfig {
-  return {
+  return normalizeShipConfig({
     width: ship.width,
     height: ship.height,
     mass: ship.mass,
@@ -108,7 +130,7 @@ export function spaceshipToConfig(ship: Spaceship): ShipConfig {
       keys: [...t.keys],
       gamepadButtons: [...t.gamepadButtons],
     })),
-  };
+  });
 }
 
 const STORAGE_KEY = 'hollowburn_ship';
@@ -116,10 +138,11 @@ const HISTORY_KEY = 'hollowburn_ship_history';
 const MAX_HISTORY = 20;
 
 export function saveShipConfig(config: ShipConfig): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  const normalized = normalizeShipConfig(config);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
 
   const history = loadShipHistory();
-  history.unshift(config);
+  history.unshift(normalized);
   if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
@@ -128,7 +151,7 @@ export function loadShipConfig(): ShipConfig | null {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as ShipConfig;
+    return normalizeShipConfig(JSON.parse(raw) as ShipConfig);
   } catch {
     return null;
   }
@@ -138,7 +161,7 @@ export function loadShipHistory(): ShipConfig[] {
   const raw = localStorage.getItem(HISTORY_KEY);
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as ShipConfig[];
+    return (JSON.parse(raw) as ShipConfig[]).map(normalizeShipConfig);
   } catch {
     return [];
   }
@@ -150,7 +173,7 @@ export function encodeShareString(config: ShipConfig): string {
 
 export function decodeShareString(str: string): ShipConfig | null {
   try {
-    return JSON.parse(atob(str)) as ShipConfig;
+    return normalizeShipConfig(JSON.parse(atob(str)) as ShipConfig);
   } catch {
     return null;
   }

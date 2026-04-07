@@ -12,6 +12,7 @@ import {InputState} from './input-state';
 import {ShipConfig, DEFAULT_SHIP_CONFIG, configToSpaceship, loadShipConfig, saveShipConfig} from './ship-config';
 import {Editor} from './editor/editor';
 import {version} from '../../package.json';
+import {nanoid} from 'nanoid';
 
 export enum GameState {
   START_SCREEN,
@@ -32,6 +33,9 @@ export class Game {
   private gamepadService: GamepadService;
   private input = new InputState();
   private editor: Editor;
+  private currentSeed: string;
+  private seedUi: HTMLDivElement;
+  private seedInput: HTMLInputElement;
 
   // Game state
   private state = GameState.START_SCREEN;
@@ -60,7 +64,11 @@ export class Game {
 
     // Load ship config
     this.shipConfig = loadShipConfig() ?? DEFAULT_SHIP_CONFIG;
-    this.buildWorld();
+    this.currentSeed = nanoid(10);
+    this.buildWorld(this.currentSeed);
+    const {seedUi, seedInput} = this.createSeedUi();
+    this.seedUi = seedUi;
+    this.seedInput = seedInput;
 
     // Editor
     this.editor = new Editor(container, this.shipConfig, (config) => {
@@ -87,10 +95,93 @@ export class Game {
     this.gameLoop();
   }
 
-  private buildWorld() {
-    this.caveGrid = new CaveGrid();
+  private createSeedUi(): {seedUi: HTMLDivElement; seedInput: HTMLInputElement} {
+    const seedUi = document.createElement('div');
+    seedUi.style.cssText = `
+      position: absolute;
+      left: 50%;
+      top: 24px;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: monospace;
+      color: #aaa;
+      background: rgba(10, 10, 26, 0.85);
+      border: 1px solid #333;
+      padding: 8px;
+    `;
+
+    const label = document.createElement('label');
+    label.textContent = 'Seed';
+    label.htmlFor = 'seed-input';
+
+    const seedInput = document.createElement('input');
+    seedInput.id = 'seed-input';
+    seedInput.type = 'text';
+    seedInput.placeholder = 'Leave empty for random';
+    seedInput.autocomplete = 'off';
+    seedInput.style.cssText = `
+      width: 220px;
+      background: #111;
+      border: 1px solid #555;
+      color: #ddd;
+      padding: 4px 6px;
+      font-family: monospace;
+      font-size: 12px;
+    `;
+    seedInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && this.state === GameState.START_SCREEN) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.startGameFromMenu();
+      }
+    });
+
+    seedUi.appendChild(label);
+    seedUi.appendChild(seedInput);
+    this.container.appendChild(seedUi);
+    return {seedUi, seedInput};
+  }
+
+  private seedToNumber(seed: string, salt: string): number {
+    const input = `${seed}:${salt}`;
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  private resolveSeedFromInput(): string {
+    const value = this.seedInput.value.trim();
+    if (value) return value;
+    const generated = nanoid(10);
+    this.seedInput.value = generated;
+    return generated;
+  }
+
+  private startGameFromMenu() {
+    this.currentSeed = this.resolveSeedFromInput();
+    this.buildWorld(this.currentSeed);
+    this.nextCheckpoint = 1;
+    this.reachedCheckpoints = 0;
+    this.skippedCheckpoints = 0;
+    this.proximitySum = 0;
+    this.proximitySamples = 0;
+    this.finalScore = 0;
+    this.proximity = null;
+    this.state = GameState.PLAYING;
+  }
+
+  private buildWorld(seed: string) {
+    const caveSeed = this.seedToNumber(seed, 'cave');
+    const pathSeed = this.seedToNumber(seed, 'path');
+    this.caveGrid = new CaveGrid({seed: caveSeed});
     this.caveGrid.generate();
-    const pathGen = new PathGenerator(this.caveGrid);
+    const pathGen = new PathGenerator(this.caveGrid, undefined, pathSeed);
     this.gamePath = pathGen.generate();
     this.spawnPoint = this.gamePath.start;
     this.spaceship = configToSpaceship(this.shipConfig);
@@ -108,7 +199,7 @@ export class Game {
 
   private onGamepadState(gp: Gamepad) {
     if (this.state === GameState.START_SCREEN) {
-      this.state = GameState.PLAYING;
+      this.startGameFromMenu();
       return;
     }
     if (this.state === GameState.EDITOR) return;
@@ -122,8 +213,18 @@ export class Game {
   }
 
   private onKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && this.state !== GameState.START_SCREEN) {
+      if (this.state === GameState.EDITOR) {
+        this.editor.exit();
+      } else {
+        this.returnToMenu();
+      }
+      return;
+    }
+
     if (this.state === GameState.START_SCREEN) {
-      this.state = GameState.PLAYING;
+      if (document.activeElement === this.seedInput) return;
+      this.startGameFromMenu();
       return;
     }
     if (this.state === GameState.EDITOR) {
@@ -145,7 +246,7 @@ export class Game {
     if (this.state === GameState.START_SCREEN) {
       const action = this.renderer.getStartScreenAction(e.offsetX, e.offsetY);
       if (action === 'play') {
-        this.state = GameState.PLAYING;
+        this.startGameFromMenu();
       } else if (action === 'editor') {
         this.state = GameState.EDITOR;
         this.editor.enter(this.shipConfig);
@@ -156,7 +257,13 @@ export class Game {
       const action = this.renderer.getFinishScreenAction(e.offsetX, e.offsetY);
       if (action === 'menu') {
         this.returnToMenu();
+        return;
       }
+    }
+    if ((this.state === GameState.PLAYING || this.state === GameState.FINISHED)
+        && this.renderer.isSeedClicked(e.offsetX, e.offsetY)) {
+      navigator.clipboard.writeText(this.currentSeed);
+      this.renderer.triggerSeedCopiedAnimation();
       return;
     }
     if (this.state === GameState.EDITOR) {
@@ -183,6 +290,7 @@ export class Game {
 
   private draw() {
     this.calcFps();
+    this.seedUi.style.display = this.state === GameState.START_SCREEN ? 'flex' : 'none';
 
     if (this.state === GameState.START_SCREEN) {
       this.renderer.drawStartScreen(this.shipConfig);
@@ -245,6 +353,7 @@ export class Game {
       finalScore: this.finalScore,
       fps: this.fps,
       version: version,
+      seed: this.currentSeed,
     });
   }
 
@@ -263,14 +372,6 @@ export class Game {
 
   private returnToMenu() {
     this.state = GameState.START_SCREEN;
-    this.nextCheckpoint = 1;
-    this.reachedCheckpoints = 0;
-    this.skippedCheckpoints = 0;
-    this.proximitySum = 0;
-    this.proximitySamples = 0;
-    this.finalScore = 0;
-    this.proximity = null;
-    this.buildWorld();
   }
 
   private calcFps() {

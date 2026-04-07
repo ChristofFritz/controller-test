@@ -46,6 +46,7 @@ export class PropertiesPanel {
     this.addNumberField('Inertia', config.inertia, 1, 1000, v => { config.inertia = v; this.onChange(); }, 10);
     this.addNumberField('Origin X', config.origin.x, -50, 50, v => { config.origin.x = v; this.onChange(); }, 0.5);
     this.addNumberField('Origin Y', config.origin.y, -50, 50, v => { config.origin.y = v; this.onChange(); }, 0.5);
+
   }
 
   renderThrusterProps(config: ShipConfig, index: number, onDelete: () => void) {
@@ -97,23 +98,23 @@ export class PropertiesPanel {
     this.el.appendChild(deleteBtn);
   }
 
-  private renderKeyBindings(t: ThrusterConfig) {
+  private renderKeyBindings(bindings: ThrusterConfig) {
     const list = document.createElement('div');
     list.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;';
 
-    for (let i = 0; i < t.keys.length; i++) {
+    for (let i = 0; i < bindings.keys.length; i++) {
       const tag = document.createElement('span');
       tag.style.cssText = `
         background: #222; border: 1px solid #555; padding: 2px 6px;
         display: flex; align-items: center; gap: 4px;
       `;
-      tag.textContent = this.formatKey(t.keys[i]);
+      tag.textContent = this.formatKey(bindings.keys[i]);
       const x = document.createElement('span');
       x.textContent = 'x';
       x.style.cssText = 'cursor: pointer; color: #f66; margin-left: 4px;';
       const idx = i;
       x.onclick = () => {
-        t.keys.splice(idx, 1);
+        bindings.keys.splice(idx, 1);
         this.onChange();
         this.refresh();
       };
@@ -130,8 +131,8 @@ export class PropertiesPanel {
     `;
     addBtn.onclick = () => {
       this.startKeyListen((key) => {
-        if (!t.keys.includes(key)) {
-          t.keys.push(key);
+        if (!bindings.keys.includes(key)) {
+          bindings.keys.push(key);
           this.onChange();
         }
         this.refresh();
@@ -142,23 +143,23 @@ export class PropertiesPanel {
     this.el.appendChild(addBtn);
   }
 
-  private renderGamepadBindings(t: ThrusterConfig) {
+  private renderGamepadBindings(bindings: ThrusterConfig) {
     const list = document.createElement('div');
     list.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;';
 
-    for (let i = 0; i < t.gamepadButtons.length; i++) {
+    for (let i = 0; i < bindings.gamepadButtons.length; i++) {
       const tag = document.createElement('span');
       tag.style.cssText = `
         background: #222; border: 1px solid #555; padding: 2px 6px;
         display: flex; align-items: center; gap: 4px;
       `;
-      tag.textContent = `Btn ${t.gamepadButtons[i]}`;
+      tag.textContent = `Btn ${bindings.gamepadButtons[i]}`;
       const x = document.createElement('span');
       x.textContent = 'x';
       x.style.cssText = 'cursor: pointer; color: #f66; margin-left: 4px;';
       const idx = i;
       x.onclick = () => {
-        t.gamepadButtons.splice(idx, 1);
+        bindings.gamepadButtons.splice(idx, 1);
         this.onChange();
         this.refresh();
       };
@@ -184,10 +185,11 @@ export class PropertiesPanel {
     `;
     addBtn.onclick = () => {
       const v = parseInt(input.value);
-      if (!isNaN(v) && v >= 0 && !t.gamepadButtons.includes(v)) {
-        t.gamepadButtons.push(v);
+      if (!isNaN(v) && v >= 0 && !bindings.gamepadButtons.includes(v)) {
+        bindings.gamepadButtons.push(v);
         input.value = '';
         this.onChange();
+        this.refresh();
       }
     };
     const row = document.createElement('div');

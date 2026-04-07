@@ -48,6 +48,7 @@ export class EditorRenderer {
     ctx.strokeStyle = SHIP_COLOR;
     ctx.lineWidth = 1.5 / scale;
     ctx.strokeRect(-ship.origin.x, -ship.origin.y, ship.width, ship.height);
+    this.drawForwardIndicator(ctx, ship, scale);
 
     // Resize handles
     ctx.fillStyle = '#666';
@@ -175,6 +176,23 @@ export class EditorRenderer {
       ctx.fillRect(xOffset, yOffset - 1, rectWidth, 2);
     }
     ctx.globalAlpha = 1;
+  }
+
+  private drawForwardIndicator(ctx: CanvasRenderingContext2D, ship: ShipConfig, scale: number) {
+    const centerX = 0;
+    const topY = -ship.origin.y;
+    const headY = topY - 36;
+    const headSize = 8;
+
+    ctx.strokeStyle = '#7df9ff';
+    ctx.lineWidth = 1 / scale;
+
+    ctx.beginPath();
+    ctx.moveTo(centerX, headY - headSize);
+    ctx.lineTo(centerX - headSize, headY + headSize);
+    ctx.lineTo(centerX + headSize, headY + headSize);
+    ctx.closePath();
+    ctx.stroke();
   }
 
   private drawToolbar(ctx: CanvasRenderingContext2D, w: number, h: number) {

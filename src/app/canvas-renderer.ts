@@ -16,6 +16,7 @@ export interface RenderState {
   finalScore: number;
   fps: number;
   version: string;
+  seed: string;
 }
 
 const FLAME_COLORS = ['#ff8c00', '#ffa500', '#ffb733', '#ffd066'];
@@ -31,6 +32,9 @@ export class CanvasRenderer {
   private playBtnBounds = {x: 0, y: 0, w: 0, h: 0};
   private editorBtnBounds = {x: 0, y: 0, w: 0, h: 0};
   private menuBtnBounds = {x: 0, y: 0, w: 0, h: 0};
+  private seedBounds = {x: 0, y: 0, w: 0, h: 0};
+  private seedCopiedAnimStart = 0;
+  private readonly seedCopiedAnimDurationMs = 700;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -303,6 +307,7 @@ export class CanvasRenderer {
     ctx.strokeStyle = '#ccc';
     ctx.lineWidth = 1;
     ctx.strokeRect(0, 0, ship.width, ship.height);
+    this.drawForwardIndicator(ship);
 
     for (const thruster of ship.thrusters) {
       this.drawThruster(thruster);
@@ -347,6 +352,23 @@ export class CanvasRenderer {
     }
 
     ctx.globalAlpha = 1;
+  }
+
+  private drawForwardIndicator(ship: Spaceship) {
+    const ctx = this.ctx;
+    const centerX = ship.origin.x;
+    const headY = -36;
+    const headSize = 8;
+
+    ctx.strokeStyle = '#7df9ff';
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(centerX, headY - headSize);
+    ctx.lineTo(centerX - headSize, headY + headSize);
+    ctx.lineTo(centerX + headSize, headY + headSize);
+    ctx.closePath();
+    ctx.stroke();
   }
 
   private drawProximityLine(shipPos: Vector, proximity: PathProximity) {
@@ -533,6 +555,33 @@ export class CanvasRenderer {
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, barWidth, barHeight);
     }
+
+    const seedText = `Seed: ${state.seed}`;
+    const seedHint = '(click to copy)';
+    ctx.font = '12px monospace';
+    const seedMetrics = ctx.measureText(seedText);
+    const hintMetrics = ctx.measureText(seedHint);
+    const sx = 10;
+    const sy = this.height - 16;
+    const fullWidth = seedMetrics.width + 8 + hintMetrics.width;
+    this.seedBounds = {x: sx - 8, y: sy - 14, w: fullWidth + 16, h: 22};
+
+    ctx.fillStyle = '#8bf';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(seedText, sx, sy);
+
+    ctx.fillStyle = '#666';
+    ctx.fillText(seedHint, sx + seedMetrics.width + 8, sy);
+
+    const elapsed = Date.now() - this.seedCopiedAnimStart;
+    if (elapsed >= 0 && elapsed < this.seedCopiedAnimDurationMs) {
+      const t = elapsed / this.seedCopiedAnimDurationMs;
+      const yLift = 6 * t;
+      const alpha = 1 - t;
+      ctx.fillStyle = `rgba(120, 255, 150, ${alpha.toFixed(3)})`;
+      ctx.fillText('Copied!', sx, sy - 18 - yLift);
+    }
   }
 
   private drawFinishScreen(state: RenderState) {
@@ -607,5 +656,14 @@ export class CanvasRenderer {
     const b = this.menuBtnBounds;
     if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) return 'menu';
     return null;
+  }
+
+  isSeedClicked(mx: number, my: number): boolean {
+    const b = this.seedBounds;
+    return mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h;
+  }
+
+  triggerSeedCopiedAnimation(): void {
+    this.seedCopiedAnimStart = Date.now();
   }
 }
